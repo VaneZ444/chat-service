@@ -21,12 +21,12 @@ func NewMessageRepo(db *sql.DB) MessageRepo {
 }
 
 func (r *messageRepo) CreateMessage(ctx context.Context, msg *entity.Message) error {
-	query := `INSERT INTO messages (author_id, content, created_at) VALUES ($1, $2, $3) RETURNING id`
-	return r.db.QueryRowContext(ctx, query, msg.AuthorID, msg.Content, msg.CreatedAt).Scan(&msg.ID)
+	query := `INSERT INTO messages (author_id, author_name, content, created_at) VALUES ($1, $2, $3, $4) RETURNING id`
+	return r.db.QueryRowContext(ctx, query, msg.AuthorID, msg.AuthorNickname, msg.Content, msg.CreatedAt).Scan(&msg.ID)
 }
 
 func (r *messageRepo) GetLastMessages(ctx context.Context, limit int) ([]entity.Message, error) {
-	query := `SELECT id, author_id, content, created_at FROM messages ORDER BY created_at DESC LIMIT $1`
+	query := `SELECT id, author_id, author_name, content, created_at FROM messages ORDER BY created_at DESC LIMIT $1`
 	rows, err := r.db.QueryContext(ctx, query, limit)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func (r *messageRepo) GetLastMessages(ctx context.Context, limit int) ([]entity.
 	var messages []entity.Message
 	for rows.Next() {
 		var msg entity.Message
-		if err := rows.Scan(&msg.ID, &msg.AuthorID, &msg.Content, &msg.CreatedAt); err != nil {
+		if err := rows.Scan(&msg.ID, &msg.AuthorID, &msg.AuthorNickname, &msg.Content, &msg.CreatedAt); err != nil {
 			return nil, err
 		}
 		messages = append(messages, msg)

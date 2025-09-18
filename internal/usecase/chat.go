@@ -10,7 +10,8 @@ import (
 )
 
 type ChatUseCase interface {
-	SendMessage(ctx context.Context, userID int64, content string) error
+	// теперь принимаем authorName
+	SendMessage(ctx context.Context, userID int64, authorName, content string) error
 	GetHistory(ctx context.Context, limit int) ([]entity.Message, error)
 	SubscribeToMessages() (<-chan entity.Message, func())
 }
@@ -27,11 +28,12 @@ func NewChatUseCase(repo repository.MessageRepo) ChatUseCase {
 	}
 }
 
-func (uc *chatUseCase) SendMessage(ctx context.Context, userID int64, content string) error {
+func (uc *chatUseCase) SendMessage(ctx context.Context, userID int64, authorName, content string) error {
 	msg := entity.Message{
-		AuthorID:  userID,
-		Content:   content,
-		CreatedAt: time.Now(),
+		AuthorID:       userID,
+		AuthorNickname: authorName, // сохраняем имя автора
+		Content:        content,
+		CreatedAt:      time.Now(),
 	}
 
 	if err := uc.repo.CreateMessage(ctx, &msg); err != nil {

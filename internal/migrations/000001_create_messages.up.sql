@@ -1,6 +1,7 @@
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
     author_id BIGINT NOT NULL,
+    author_name TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

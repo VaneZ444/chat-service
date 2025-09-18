@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"io"
+	"log/slog"
 
 	"github.com/VaneZ444/chat-service/internal/usecase"
 	pb "github.com/VaneZ444/golang-forum-protos/gen/go/chat" // путь к сгенерированному коду
@@ -21,41 +22,58 @@ func (s *ChatServer) Connect(stream pb.ChatService_ConnectServer) error {
 	msgChan, unsubscribe := s.uc.SubscribeToMessages()
 	defer unsubscribe()
 
-	// Отправка истории (например, 50 последних сообщений)
+	// --- Отправка истории (например, 50 последних сообщений) ---
 	history, err := s.uc.GetHistory(stream.Context(), 50)
 	if err == nil {
 		for _, m := range history {
+			// можно оставить AuthorNickname пустым или добавить, если используешь кэш пользователей
 			stream.Send(&pb.ServerMessage{
-				Id:        m.ID,
-				AuthorId:  m.AuthorID,
-				Content:   m.Content,
-				CreatedAt: m.CreatedAt.Format("2006-01-02 15:04:05"),
+				Id:         m.ID,
+				AuthorId:   m.AuthorID,
+				AuthorName: m.AuthorNickname, // если есть поле в entity.Message
+				Content:    m.Content,
+				CreatedAt:  m.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}
 
-	// Канал приёма сообщений от клиента
+	// --- Канал приёма сообщений от клиента ---
 	go func() {
 		for {
 			msg, err := stream.Recv()
 			if err == io.EOF || err != nil {
 				return
 			}
-			// user_id придёт из метаданных (gateway должен прокидывать)
-			// пока можно хардкодить для теста
-			_ = s.uc.SendMessage(stream.Context(), 1, msg.Content)
+
+			// Получаем user_id и nickname из metadata
+			userID := GetUserIDFromCtx(stream.Context())
+			if userID == 0 {
+				userID = 1 // fallback для теста
+			}
+			nickname := GetUserNicknameFromCtx(stream.Context())
+
+			_ = s.uc.SendMessage(stream.Context(), userID, nickname, msg.Content)
+
+			// Можно сразу логировать
+			slog.Info("new message received",
+				"user_id", userID,
+				"nickname", nickname,
+				"content", msg.Content)
 		}
 	}()
 
-	// Отдаём новые сообщения клиенту
+	// --- Отдаём новые сообщения клиенту ---
 	for {
 		select {
 		case m := <-msgChan:
+			// Получаем ник пользователя из сообщения (если есть) или через мапу
+			authorNickname := m.AuthorNickname
 			stream.Send(&pb.ServerMessage{
-				Id:        m.ID,
-				AuthorId:  m.AuthorID,
-				Content:   m.Content,
-				CreatedAt: m.CreatedAt.Format("2006-01-02 15:04:05"),
+				Id:         m.ID,
+				AuthorId:   m.AuthorID,
+				AuthorName: authorNickname,
+				Content:    m.Content,
+				CreatedAt:  m.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		case <-stream.Context().Done():
 			return nil
