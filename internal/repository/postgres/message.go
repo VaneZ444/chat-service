@@ -26,7 +26,14 @@ func (r *messageRepo) CreateMessage(ctx context.Context, msg *entity.Message) er
 }
 
 func (r *messageRepo) GetLastMessages(ctx context.Context, limit int) ([]entity.Message, error) {
-	query := `SELECT id, author_id, author_name, content, created_at FROM messages ORDER BY created_at DESC LIMIT $1`
+	query := `SELECT id, author_id, author_name, content, created_at
+		FROM (
+			SELECT id, author_id, author_name, content, created_at
+			FROM messages
+			ORDER BY created_at DESC
+			LIMIT $1
+		) sub
+		ORDER BY created_at ASC;`
 	rows, err := r.db.QueryContext(ctx, query, limit)
 	if err != nil {
 		return nil, err

@@ -22,8 +22,8 @@ func (s *ChatServer) Connect(stream pb.ChatService_ConnectServer) error {
 	msgChan, unsubscribe := s.uc.SubscribeToMessages()
 	defer unsubscribe()
 
-	// --- Отправка истории (например, 50 последних сообщений) ---
-	history, err := s.uc.GetHistory(stream.Context(), 50)
+	// --- Отправка истории (например, 20 последних сообщений) ---
+	history, err := s.uc.GetHistory(stream.Context(), 20)
 	if err == nil {
 		for _, m := range history {
 			// можно оставить AuthorNickname пустым или добавить, если используешь кэш пользователей
@@ -66,8 +66,10 @@ func (s *ChatServer) Connect(stream pb.ChatService_ConnectServer) error {
 	for {
 		select {
 		case m := <-msgChan:
-			// Получаем ник пользователя из сообщения (если есть) или через мапу
 			authorNickname := m.AuthorNickname
+			if authorNickname == "" {
+				authorNickname = "Unknown"
+			}
 			stream.Send(&pb.ServerMessage{
 				Id:         m.ID,
 				AuthorId:   m.AuthorID,
@@ -89,11 +91,18 @@ func (s *ChatServer) GetHistory(ctx context.Context, req *pb.HistoryRequest) (*p
 
 	var res pb.HistoryResponse
 	for _, m := range messages {
+		// Убедитесь, что AuthorNickname не пустой
+		authorName := m.AuthorNickname
+		if authorName == "" {
+			authorName = "Аноним" // Запасное значение
+		}
+
 		res.Messages = append(res.Messages, &pb.ServerMessage{
-			Id:        m.ID,
-			AuthorId:  m.AuthorID,
-			Content:   m.Content,
-			CreatedAt: m.CreatedAt.Format("2006-01-02 15:04:05"),
+			Id:         m.ID,
+			AuthorId:   m.AuthorID,
+			AuthorName: authorName, // Убедитесь, что это поле заполнено
+			Content:    m.Content,
+			CreatedAt:  m.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 	return &res, nil

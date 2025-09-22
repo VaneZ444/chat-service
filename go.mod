@@ -14,6 +14,7 @@ require (
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.19.0
+	github.com/gorilla/websocket v1.5.3
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
